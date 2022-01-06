@@ -12,6 +12,14 @@ import javax.net.ssl.{SSLContext, TrustManager, TrustManagerFactory, X509TrustMa
 import scala.collection.JavaConverters._
 
 object TrustManagers {
+  val insecureTrustManager: X509TrustManager = new X509TrustManager() {
+    override def checkClientTrusted(chain: Array[X509Certificate], authType: String): Unit = ()
+
+    override def checkServerTrusted(chain: Array[X509Certificate], authType: String): Unit = ()
+
+    override def getAcceptedIssuers: Array[X509Certificate] = null
+  }
+
   implicit val trustManagerSemigroup: Semigroup[X509TrustManager] =
     Semigroup.instance { (trustManager1, trustManager2) =>
       new X509TrustManager {
