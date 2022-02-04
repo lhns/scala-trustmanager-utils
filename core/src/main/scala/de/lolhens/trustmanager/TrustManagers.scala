@@ -8,7 +8,8 @@ import java.io.{ByteArrayInputStream, IOException}
 import java.nio.file.{Files, Path}
 import java.security.KeyStore
 import java.security.cert.{Certificate, CertificateException, CertificateFactory, X509Certificate}
-import javax.net.ssl.{SSLContext, TrustManager, TrustManagerFactory, X509TrustManager}
+import java.util.concurrent.atomic.AtomicReference
+import javax.net.ssl.{SSLContext, TrustManagerFactory, X509TrustManager}
 import scala.collection.JavaConverters._
 
 object TrustManagers {
@@ -61,12 +62,38 @@ object TrustManagers {
     null
   }
 
-  def defaultTrustManager: X509TrustManager = trustManagerFromKeyStore(null)
+  def jreTrustManager: X509TrustManager = trustManagerFromKeyStore(null)
 
-  def setDefaultTrustManager(trustManager: TrustManager): Unit = {
+  @deprecated(message = "use jreTrustManager instead")
+  def defaultTrustManager: X509TrustManager = jreTrustManager
+
+  private class ThreadSafeX509TrustManager(initial: X509TrustManager) extends X509TrustManager {
+    private val atomicTrustManager = new AtomicReference(initial)
+
+    def set(trustManager: X509TrustManager): Unit =
+      atomicTrustManager.set(trustManager)
+
+    override def checkClientTrusted(chain: Array[X509Certificate], authType: String): Unit =
+      atomicTrustManager.get().checkClientTrusted(chain, authType)
+
+    override def checkServerTrusted(chain: Array[X509Certificate], authType: String): Unit =
+      atomicTrustManager.get().checkServerTrusted(chain, authType)
+
+    override def getAcceptedIssuers: Array[X509Certificate] =
+      atomicTrustManager.get().getAcceptedIssuers
+  }
+
+  private lazy val defaultThreadSafeTrustManager = new ThreadSafeX509TrustManager(jreTrustManager)
+
+  private def sslContext(trustManager: X509TrustManager): SSLContext = {
     val sslContext = SSLContext.getInstance("TLS")
     sslContext.init(null, Array(trustManager), null)
-    SSLContext.setDefault(sslContext)
+    sslContext
+  }
+
+  def setDefaultTrustManager(trustManager: X509TrustManager): Unit = {
+    defaultThreadSafeTrustManager.set(trustManager)
+    SSLContext.setDefault(sslContext(defaultThreadSafeTrustManager))
   }
 
   def keyStoreFromCertificates(certificates: Seq[Certificate]): KeyStore = {
