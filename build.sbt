@@ -1,4 +1,4 @@
-lazy val scalaVersions = Seq("3.1.0", "2.13.7", "2.12.15")
+lazy val scalaVersions = Seq("3.1.1", "2.13.8", "2.12.15")
 
 ThisBuild / scalaVersion := scalaVersions.head
 ThisBuild / versionScheme := Some("early-semver")
@@ -25,7 +25,7 @@ lazy val commonSettings: SettingsDefinition = Def.settings(
   ),
 
   libraryDependencies ++= Seq(
-    "ch.qos.logback" % "logback-classic" % "1.2.8" % Test,
+    "ch.qos.logback" % "logback-classic" % "1.2.10" % Test,
     "de.lolhens" %% "munit-tagless-final" % "0.2.0" % Test,
     "org.scalameta" %% "munit" % "0.7.29" % Test,
   ),
@@ -77,7 +77,7 @@ lazy val core = projectMatrix.in(file("core"))
 
     libraryDependencies ++= Seq(
       "org.log4s" %% "log4s" % "1.10.0",
-      "org.slf4j" % "slf4j-api" % "1.7.32",
+      "org.slf4j" % "slf4j-api" % "1.7.35",
       "org.typelevel" %% "cats-core" % V.cats,
     ),
   )
