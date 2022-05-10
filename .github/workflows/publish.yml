@@ -17,14 +17,9 @@ jobs:
           java-version: '17'
           cache: 'sbt'
           gpg-private-key: ${{ secrets.PGP_PRIVATE_KEY }}
-      - name: Import PGP key
-        env:
-          PGP_PRIVATE_KEY: ${{ secrets.PGP_PRIVATE_KEY }}
-        run: gpg --import <(echo "$PGP_PRIVATE_KEY")
       - name: Publish
         env:
           CI_VERSION: ${{ github.ref }}
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
-          PGP_PRIVATE_KEY: ${{ secrets.PGP_PRIVATE_KEY }}
-        run: gpg --import <(echo "$PGP_PRIVATE_KEY"); sbt "; test; publishSigned; sonatypeBundleRelease"
+        run: sbt "; test; publishSigned; sonatypeBundleRelease"
