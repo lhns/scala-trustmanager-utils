@@ -12,7 +12,7 @@ This project provides helpers to create, combine and load TrustManagers.
 ### build.sbt
 
 ```sbt
-libraryDependencies += "de.lolhens" %% "scala-trustmanager-utils" % "0.2.1"
+libraryDependencies += "de.lolhens" %% "scala-trustmanager-utils" % "0.3.0"
 ```
 
 ### Example
@@ -22,7 +22,7 @@ libraryDependencies += "de.lolhens" %% "scala-trustmanager-utils" % "0.2.1"
       Option(System.getenv("https_certs_path"))
         .map(Paths.get(_))
         .iterator
-        .foldLeft(jreTrustManager) { (trustManager, path) =>
+        .foldLeft(defaultTrustManager) { (trustManager, path) =>
           logger.info(s"https_certs_path: $path")
           trustManager |+| trustManagerFromCertificatePath(path)
         }
