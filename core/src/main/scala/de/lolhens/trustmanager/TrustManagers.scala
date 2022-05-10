@@ -4,7 +4,7 @@ import cats.kernel.Semigroup
 import cats.syntax.all._
 import org.log4s.getLogger
 
-import java.io.{ByteArrayInputStream, IOException}
+import java.io.{ByteArrayInputStream, FileInputStream, IOException}
 import java.nio.file.{Files, Path}
 import java.security.KeyStore
 import java.security.cert.{Certificate, CertificateException, CertificateFactory, X509Certificate}
@@ -62,7 +62,29 @@ object TrustManagers {
     null
   }
 
-  def jreTrustManager: X509TrustManager = trustManagerFromKeyStore(null)
+  def jreTrustManager: X509TrustManager = {
+    lazy val trustStoreType = Option(System.getProperty("javax.net.ssl.trustStoreType")).getOrElse(KeyStore.getDefaultType)
+    lazy val trustStoreProvider = Option(System.getProperty("javax.net.ssl.trustStoreProvider"))
+    lazy val trustStore = Option(System.getProperty("javax.net.ssl.trustStore")).filterNot(_ == "NONE")
+    lazy val trustStorePassword = Option(System.getProperty("javax.net.ssl.trustStorePassword")).map(_.toCharArray)
+
+    val keyStore = trustStoreProvider.fold(
+      KeyStore.getInstance(trustStoreType)
+    )(trustStoreProvider =>
+      KeyStore.getInstance(trustStoreType, trustStoreProvider)
+    )
+
+    trustStore.foreach { trustStorePath =>
+      val inputStream = new FileInputStream(trustStorePath)
+      try {
+        keyStore.load(inputStream, trustStorePassword.orNull)
+      } finally {
+        inputStream.close()
+      }
+    }
+
+    trustManagerFromKeyStore(keyStore)
+  }
 
   @deprecated(message = "use jreTrustManager instead")
   def defaultTrustManager: X509TrustManager = jreTrustManager
