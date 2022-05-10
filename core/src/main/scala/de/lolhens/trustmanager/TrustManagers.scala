@@ -62,7 +62,7 @@ object TrustManagers {
     null
   }
 
-  def jreTrustManager: X509TrustManager = {
+  lazy val jreTrustManager: X509TrustManager = {
     lazy val trustStoreType = Option(System.getProperty("javax.net.ssl.trustStoreType")).getOrElse(KeyStore.getDefaultType)
     lazy val trustStoreProvider = Option(System.getProperty("javax.net.ssl.trustStoreProvider"))
     lazy val trustStore = Option(System.getProperty("javax.net.ssl.trustStore")).filterNot(_ == "NONE")
@@ -88,11 +88,8 @@ object TrustManagers {
     trustManagerFromKeyStore(keyStore.orNull)
   }
 
-  @deprecated(message = "use jreTrustManager instead")
-  def defaultTrustManager: X509TrustManager = jreTrustManager
-
   private class ThreadSafeX509TrustManager(initial: X509TrustManager) extends X509TrustManager {
-    private val atomicTrustManager = new AtomicReference(initial)
+    val atomicTrustManager = new AtomicReference(initial)
 
     def set(trustManager: X509TrustManager): Unit =
       atomicTrustManager.set(trustManager)
@@ -109,15 +106,18 @@ object TrustManagers {
 
   private lazy val defaultThreadSafeTrustManager = new ThreadSafeX509TrustManager(jreTrustManager)
 
-  private def sslContext(trustManager: X509TrustManager): SSLContext = {
-    val sslContext = SSLContext.getInstance("TLS")
-    sslContext.init(null, Array(trustManager), null)
-    sslContext
-  }
+  def defaultTrustManager: X509TrustManager =
+    defaultThreadSafeTrustManager.atomicTrustManager.get()
 
   def setDefaultTrustManager(trustManager: X509TrustManager): Unit = {
     defaultThreadSafeTrustManager.set(trustManager)
     SSLContext.setDefault(sslContext(defaultThreadSafeTrustManager))
+  }
+
+  private def sslContext(trustManager: X509TrustManager): SSLContext = {
+    val sslContext = SSLContext.getInstance("TLS")
+    sslContext.init(null, Array(trustManager), null)
+    sslContext
   }
 
   def keyStoreFromCertificates(certificates: Seq[Certificate]): KeyStore = {
