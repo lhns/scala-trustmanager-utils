@@ -68,22 +68,24 @@ object TrustManagers {
     lazy val trustStore = Option(System.getProperty("javax.net.ssl.trustStore")).filterNot(_ == "NONE")
     lazy val trustStorePassword = Option(System.getProperty("javax.net.ssl.trustStorePassword")).map(_.toCharArray)
 
-    val keyStore = trustStoreProvider.fold(
-      KeyStore.getInstance(trustStoreType)
-    )(trustStoreProvider =>
-      KeyStore.getInstance(trustStoreType, trustStoreProvider)
-    )
+    val keyStore = trustStore.map { trustStorePath =>
+      val keyStore = trustStoreProvider.fold(
+        KeyStore.getInstance(trustStoreType)
+      )(trustStoreProvider =>
+        KeyStore.getInstance(trustStoreType, trustStoreProvider)
+      )
 
-    trustStore.foreach { trustStorePath =>
       val inputStream = new FileInputStream(trustStorePath)
       try {
         keyStore.load(inputStream, trustStorePassword.orNull)
       } finally {
         inputStream.close()
       }
+
+      keyStore
     }
 
-    trustManagerFromKeyStore(keyStore)
+    trustManagerFromKeyStore(keyStore.orNull)
   }
 
   @deprecated(message = "use jreTrustManager instead")
