@@ -11,12 +11,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-java@v3.2.0
+      - uses: actions/setup-java@v3.3.0
         with:
           distribution: 'adopt'
           java-version: '17'
-          #cache: 'sbt'
-          #gpg-private-key: ${{ secrets.PGP_PRIVATE_KEY }}
+          cache: 'sbt'
+          gpg-private-key: ${{ secrets.PGP_PRIVATE_KEY }}
       - name: Import PGP key
         env:
           PGP_PRIVATE_KEY: ${{ secrets.PGP_PRIVATE_KEY }}
@@ -26,4 +26,5 @@ jobs:
           CI_VERSION: ${{ github.ref }}
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
-        run: sbt "; test; publishSigned; sonatypeBundleRelease"
+          PGP_PRIVATE_KEY: ${{ secrets.PGP_PRIVATE_KEY }}
+        run: gpg --import <(echo "$PGP_PRIVATE_KEY"); sbt "; test; publishSigned; sonatypeBundleRelease"
