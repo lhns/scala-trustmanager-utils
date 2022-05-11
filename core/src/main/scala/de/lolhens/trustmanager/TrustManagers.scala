@@ -5,7 +5,7 @@ import cats.syntax.all._
 import org.log4s.getLogger
 
 import java.io.{ByteArrayInputStream, FileInputStream, IOException}
-import java.nio.file.{Files, Path}
+import java.nio.file.{Files, Path, Paths}
 import java.security.KeyStore
 import java.security.cert.{Certificate, CertificateException, CertificateFactory, X509Certificate}
 import java.util.concurrent.atomic.AtomicReference
@@ -89,10 +89,13 @@ object TrustManagers {
   }
 
   private class ThreadSafeX509TrustManager(initial: X509TrustManager) extends X509TrustManager {
-    val atomicTrustManager = new AtomicReference(initial)
+    private val atomicTrustManager = new AtomicReference(initial)
 
     def set(trustManager: X509TrustManager): Unit =
       atomicTrustManager.set(trustManager)
+
+    def get(): X509TrustManager =
+      atomicTrustManager.get()
 
     override def checkClientTrusted(chain: Array[X509Certificate], authType: String): Unit =
       atomicTrustManager.get().checkClientTrusted(chain, authType)
@@ -107,7 +110,7 @@ object TrustManagers {
   private lazy val defaultThreadSafeTrustManager = new ThreadSafeX509TrustManager(jreTrustManager)
 
   def defaultTrustManager: X509TrustManager =
-    defaultThreadSafeTrustManager.atomicTrustManager.get()
+    defaultThreadSafeTrustManager.get()
 
   def setDefaultTrustManager(trustManager: X509TrustManager): Unit = {
     defaultThreadSafeTrustManager.set(trustManager)
@@ -141,7 +144,8 @@ object TrustManagers {
 
   def trustManagerFromCertificatePath(path: Path): X509TrustManager =
     trustManagerFromKeyStore(keyStoreFromCertificates(
-      Files.list(path).iterator.asScala
+      (if (Files.isDirectory(path)) Files.list(path).iterator.asScala
+      else Seq(path))
         .filter(Files.isRegularFile(_))
         .flatMap { file =>
           val certificateOrError = for {
@@ -155,4 +159,16 @@ object TrustManagers {
           certificateOrError.toSeq
         }.toSeq
     ))
+
+  lazy val trustManagerFromEnvVar: Option[X509TrustManager] =
+    Option(System.getenv("https_cert_path"))
+      .orElse(Option(System.getenv("https_certs_path")))
+      .map { string =>
+        val path = Paths.get(string)
+        logger.debug(s"https_cert_path: $path")
+        trustManagerFromCertificatePath(path)
+      }
+
+  lazy val jreTrustManagerWithEnvVar: X509TrustManager =
+    Semigroup.maybeCombine(jreTrustManager, trustManagerFromEnvVar)
 }
