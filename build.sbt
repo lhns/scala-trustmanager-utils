@@ -57,7 +57,7 @@ lazy val commonSettings: SettingsDefinition = Def.settings(
 name := (core.projectRefs.head / name).value
 
 val V = new {
-  val cats = "2.7.0"
+  val cats = "2.8.0"
 }
 
 lazy val root: Project =
