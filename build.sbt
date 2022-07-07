@@ -1,4 +1,4 @@
-lazy val scalaVersions = Seq("3.1.1", "2.13.8", "2.12.15")
+lazy val scalaVersions = Seq("3.1.3", "2.13.8", "2.12.16")
 
 ThisBuild / scalaVersion := scalaVersions.head
 ThisBuild / versionScheme := Some("early-semver")
@@ -70,7 +70,7 @@ lazy val commonSettings: SettingsDefinition = Def.settings(
 name := (core.projectRefs.head / name).value
 
 val V = new {
-  val cats = "2.7.0"
+  val cats = "2.8.0"
 }
 
 lazy val root: Project =
