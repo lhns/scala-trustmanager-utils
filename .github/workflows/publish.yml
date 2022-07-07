@@ -22,4 +22,4 @@ jobs:
           CI_VERSION: ${{ github.ref }}
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
-        run: sbt "; test; publishSigned; sonatypeBundleRelease"
+        run: sbt '; test; publishSigned; sonatypeBundleRelease; sonatypeBundleClean; set ThisBuild / organization := "de.lolhens"; publishSigned; sonatypeBundleRelease'

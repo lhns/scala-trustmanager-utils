@@ -2,9 +2,9 @@ lazy val scalaVersions = Seq("3.1.1", "2.13.8", "2.12.15")
 
 ThisBuild / scalaVersion := scalaVersions.head
 ThisBuild / versionScheme := Some("early-semver")
+organization := "de.lhns"
 
 lazy val commonSettings: SettingsDefinition = Def.settings(
-  organization := "de.lolhens",
   version := {
     val Tag = "refs/tags/(.*)".r
     sys.env.get("CI_VERSION").collect { case Tag(tag) => tag }
@@ -16,12 +16,12 @@ lazy val commonSettings: SettingsDefinition = Def.settings(
   homepage := scmInfo.value.map(_.browseUrl),
   scmInfo := Some(
     ScmInfo(
-      url("https://github.com/LolHens/scala-trustmanager-utils"),
-      "scm:git@github.com:LolHens/scala-trustmanager-utils.git"
+      url("https://github.com/lhns/scala-trustmanager-utils"),
+      "scm:git@github.com:lhns/scala-trustmanager-utils.git"
     )
   ),
   developers := List(
-    Developer(id = "LolHens", name = "Pierre Kisters", email = "pierrekisters@gmail.com", url = url("https://github.com/LolHens/"))
+    Developer(id = "lhns", name = "Pierre Kisters", email = "pierrekisters@gmail.com", url = url("https://github.com/lhns/"))
   ),
 
   libraryDependencies ++= Seq(
@@ -43,15 +43,28 @@ lazy val commonSettings: SettingsDefinition = Def.settings(
 
   publishTo := sonatypePublishToBundle.value,
 
+  sonatypeCredentialHost := (sonatypeProfileName.value match {
+    case "de.lolhens" => "oss.sonatype.org"
+    case _ => "s01.oss.sonatype.org"
+  }),
+
   credentials ++= (for {
     username <- sys.env.get("SONATYPE_USERNAME")
     password <- sys.env.get("SONATYPE_PASSWORD")
   } yield Credentials(
     "Sonatype Nexus Repository Manager",
-    "oss.sonatype.org",
+    sonatypeCredentialHost.value,
     username,
     password
-  )).toList
+  )).toList,
+
+  pomExtra := {
+    <distributionManagement>
+      <relocation>
+        <groupId>de.lhns</groupId>
+      </relocation>
+    </distributionManagement>
+  }
 )
 
 name := (core.projectRefs.head / name).value
