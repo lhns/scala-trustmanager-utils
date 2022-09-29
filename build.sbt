@@ -95,7 +95,7 @@ lazy val core = projectMatrix.in(file("core"))
 
     libraryDependencies ++= Seq(
       "org.log4s" %% "log4s" % "1.10.0",
-      "org.slf4j" % "slf4j-api" % "2.0.2",
+      "org.slf4j" % "slf4j-api" % "2.0.3",
       "org.typelevel" %% "cats-core" % V.cats,
     ),
   )
