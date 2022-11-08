@@ -146,7 +146,7 @@ object TrustManagers {
     trustManagerFromKeyStore(keyStoreFromCertificates(
       (if (Files.isDirectory(path)) Files.list(path).iterator.asScala
       else Seq(path))
-        .filter(Files.isRegularFile(_))
+        .filter(path => !path.getFileName.toString.startsWith(".") && Files.isRegularFile(path))
         .flatMap { file =>
           val certificateOrError = for {
             bytes <- Either.catchOnly[IOException](Files.readAllBytes(file))
@@ -171,4 +171,9 @@ object TrustManagers {
 
   lazy val jreTrustManagerWithEnvVar: X509TrustManager =
     Semigroup.maybeCombine(jreTrustManager, trustManagerFromEnvVar)
+
+  lazy val insecureTrustManagerFromEnvVar: Option[X509TrustManager] =
+    Option(System.getenv("https_insecure"))
+      .filter(_.equalsIgnoreCase("true"))
+      .map(_ => insecureTrustManager)
 }
