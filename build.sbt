@@ -7,7 +7,7 @@ name := (core.projectRefs.head / name).value
 
 val V = new {
   val betterMonadicFor = "0.3.1"
-  val cats = "2.8.0"
+  val cats = "2.9.0"
   val log4s = "1.10.0"
   val logbackClassic = "1.4.4"
   val munit = "0.7.29"
