@@ -12,7 +12,7 @@ This project provides helpers to create, combine and load TrustManagers.
 ### build.sbt
 
 ```sbt
-libraryDependencies += "de.lhns" %% "scala-trustmanager-utils" % "0.3.4"
+libraryDependencies += "de.lhns" %% "scala-trustmanager-utils" % "0.3.5"
 ```
 
 ### Example
