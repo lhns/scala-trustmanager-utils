@@ -1,4 +1,4 @@
-package de.lolhens.trustmanager
+package de.lhns.trustmanager
 
 import cats.kernel.Semigroup
 import cats.syntax.all._
