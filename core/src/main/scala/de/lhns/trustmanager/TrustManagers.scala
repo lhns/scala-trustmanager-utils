@@ -56,10 +56,9 @@ object TrustManagers {
   def trustManagerFromKeyStore(keyStore: KeyStore): X509TrustManager = {
     val trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm)
     trustManagerFactory.init(keyStore)
-    for (trustManager <- trustManagerFactory.getTrustManagers) trustManager match {
-      case x509TrustManager: X509TrustManager => return x509TrustManager
-    }
-    null
+    trustManagerFactory.getTrustManagers.collectFirst {
+      case x509TrustManager: X509TrustManager => x509TrustManager
+    }.orNull
   }
 
   lazy val jreTrustManager: X509TrustManager = {
@@ -133,23 +132,14 @@ object TrustManagers {
     keyStore
   }
 
-  def x509CertificateFromBytes(bytes: Array[Byte]): Either[CertificateException, X509Certificate] =
-    Either.catchOnly[CertificateException] {
-      CertificateFactory.getInstance("X509")
-        .generateCertificate(new ByteArrayInputStream(bytes))
-        .asInstanceOf[X509Certificate]
-    }
-
-  private val logger = getLogger
-
-  def trustManagerFromCertificatePath(path: Path): X509TrustManager =
-    trustManagerFromKeyStore(keyStoreFromCertificates(
+  def keyStoreFromCertificatePath(path: Path): KeyStore =
+    keyStoreFromCertificates(
       (if (Files.isDirectory(path)) Files.list(path).iterator.asScala
       else Seq(path))
         .filter(path => !path.getFileName.toString.startsWith(".") && Files.isRegularFile(path))
         .flatMap { file =>
           val certificateOrError = for {
-            bytes <- Either.catchOnly[IOException](Files.readAllBytes(file))
+            bytes <- Either.catchOnly[IOException].apply(Files.readAllBytes(file))
             certificate <- x509CertificateFromBytes(bytes)
           } yield certificate
           certificateOrError.fold[Unit](
@@ -158,7 +148,19 @@ object TrustManagers {
           )
           certificateOrError.toSeq
         }.toSeq
-    ))
+    )
+
+  def x509CertificateFromBytes(bytes: Array[Byte]): Either[CertificateException, X509Certificate] =
+    Either.catchOnly[CertificateException].apply {
+      CertificateFactory.getInstance("X509")
+        .generateCertificate(new ByteArrayInputStream(bytes))
+        .asInstanceOf[X509Certificate]
+    }
+
+  private val logger = getLogger
+
+  def trustManagerFromCertificatePath(path: Path): X509TrustManager =
+    trustManagerFromKeyStore(keyStoreFromCertificatePath(path))
 
   lazy val trustManagerFromEnvVar: Option[X509TrustManager] =
     Option(System.getenv("https_cert_path"))
@@ -170,10 +172,13 @@ object TrustManagers {
       }
 
   lazy val jreTrustManagerWithEnvVar: X509TrustManager =
-    Semigroup.maybeCombine(jreTrustManager, trustManagerFromEnvVar)
+    Semigroup.maybeCombine(trustManagerFromEnvVar, jreTrustManager)
 
   lazy val insecureTrustManagerFromEnvVar: Option[X509TrustManager] =
     Option(System.getenv("https_insecure"))
       .filter(_.equalsIgnoreCase("true"))
       .map(_ => insecureTrustManager)
+
+  lazy val jreTrustManagerInsecureWithEnvVar: X509TrustManager =
+    Semigroup.maybeCombine(insecureTrustManagerFromEnvVar, jreTrustManagerWithEnvVar)
 }

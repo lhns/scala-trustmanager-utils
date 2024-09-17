@@ -7,11 +7,11 @@ name := (core.projectRefs.head / name).value
 
 val V = new {
   val betterMonadicFor = "0.3.1"
-  val cats = "2.10.0"
+  val cats = "2.12.0"
   val log4s = "1.10.0"
   val logbackClassic = "1.5.8"
-  val munit = "1.0.0"
-  val munitTaglessFinal = "0.2.0"
+  val munit = "1.0.2"
+  val munitTaglessFinal = "0.3.0"
   val slf4j = "2.0.16"
 }
 
@@ -37,7 +37,7 @@ lazy val commonSettings: SettingsDefinition = Def.settings(
 
   libraryDependencies ++= Seq(
     "ch.qos.logback" % "logback-classic" % V.logbackClassic % Test,
-    "de.lolhens" %% "munit-tagless-final" % V.munitTaglessFinal % Test,
+    "de.lhns" %% "munit-tagless-final" % V.munitTaglessFinal % Test,
     "org.scalameta" %% "munit" % V.munit % Test,
   ),
 
