@@ -132,7 +132,7 @@ object TrustManagers {
     keyStore
   }
 
-  def keyStoreFromCertificatePath(path: Path): KeyStore =
+  def keyStoreFromCertificatePath(path: Path, onLoad: Either[(Throwable, Path), Path] => Unit): KeyStore =
     keyStoreFromCertificates(
       (if (Files.isDirectory(path)) Files.list(path).iterator.asScala
       else Seq(path))
@@ -143,12 +143,24 @@ object TrustManagers {
             certificate <- x509CertificateFromBytes(bytes)
           } yield certificate
           certificateOrError.fold[Unit](
-            logger.warn(_)(s"Failed to load certificate: $file"),
-            _ => logger.info(s"Loaded certificate: $file")
+            error => onLoad(Left((error, file))),
+            _ => onLoad(Right(file))
           )
           certificateOrError.toSeq
         }.toSeq
     )
+
+  private lazy val logger = getLogger
+
+  private def logOnLoad: Either[(Throwable, Path), Path] => Unit = {
+    case Left((throwable, file)) =>
+      logger.warn(throwable)(s"Failed to load certificate: $file")
+    case Right(file) =>
+      logger.info(s"Loaded certificate: $file")
+  }
+
+  def keyStoreFromCertificatePath(path: Path): KeyStore =
+    keyStoreFromCertificatePath(path, onLoad = logOnLoad)
 
   def x509CertificateFromBytes(bytes: Array[Byte]): Either[CertificateException, X509Certificate] =
     Either.catchOnly[CertificateException].apply {
@@ -157,10 +169,11 @@ object TrustManagers {
         .asInstanceOf[X509Certificate]
     }
 
-  private val logger = getLogger
+  def trustManagerFromCertificatePath(path: Path, onLoad: Either[(Throwable, Path), Path] => Unit): X509TrustManager =
+    trustManagerFromKeyStore(keyStoreFromCertificatePath(path, onLoad))
 
   def trustManagerFromCertificatePath(path: Path): X509TrustManager =
-    trustManagerFromKeyStore(keyStoreFromCertificatePath(path))
+    trustManagerFromCertificatePath(path, onLoad = logOnLoad)
 
   lazy val trustManagerFromEnvVar: Option[X509TrustManager] =
     Option(System.getenv("https_cert_path"))
@@ -168,7 +181,7 @@ object TrustManagers {
       .map { string =>
         val path = Paths.get(string)
         logger.debug(s"https_cert_path: $path")
-        trustManagerFromCertificatePath(path)
+        trustManagerFromCertificatePath(path, onLoad = logOnLoad)
       }
 
   lazy val jreTrustManagerWithEnvVar: X509TrustManager =
