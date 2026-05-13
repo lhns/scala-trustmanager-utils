@@ -12,7 +12,7 @@ val V = new {
   val logbackClassic = "1.5.19"
   val munit = "1.1.0"
   val munitTaglessFinal = "0.3.0"
-  val slf4j = "2.0.17"
+  val slf4j = "2.0.18"
 }
 
 lazy val commonSettings: SettingsDefinition = Def.settings(
