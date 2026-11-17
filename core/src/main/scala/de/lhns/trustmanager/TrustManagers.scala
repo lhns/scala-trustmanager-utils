@@ -138,15 +138,15 @@ object TrustManagers {
       else Seq(path))
         .filter(path => !path.getFileName.toString.startsWith(".") && Files.isRegularFile(path))
         .flatMap { file =>
-          val certificateOrError = for {
+          val certificatesOrError = for {
             bytes <- Either.catchOnly[IOException].apply(Files.readAllBytes(file))
-            certificate <- x509CertificateFromBytes(bytes)
-          } yield certificate
-          certificateOrError.fold[Unit](
+            certificates <- x509CertificatesFromBytes(bytes)
+          } yield certificates
+          certificatesOrError.fold[Unit](
             error => onLoad(Left((error, file))),
             _ => onLoad(Right(file))
           )
-          certificateOrError.toSeq
+          certificatesOrError.toSeq.flatten
         }.toSeq
     )
 
@@ -162,11 +162,25 @@ object TrustManagers {
   def keyStoreFromCertificatePath(path: Path): KeyStore =
     keyStoreFromCertificatePath(path, onLoad = logOnLoad)
 
+  @deprecated("Reads only the first certificate; use x509CertificatesFromBytes", "1.2.0")
   def x509CertificateFromBytes(bytes: Array[Byte]): Either[CertificateException, X509Certificate] =
     Either.catchOnly[CertificateException].apply {
-      CertificateFactory.getInstance("X509")
+      CertificateFactory.getInstance("X.509")
         .generateCertificate(new ByteArrayInputStream(bytes))
         .asInstanceOf[X509Certificate]
+    }
+
+  /** Reads all certificates: a single DER/PEM certificate or a PEM bundle. Fails if there are none. */
+  def x509CertificatesFromBytes(bytes: Array[Byte]): Either[CertificateException, Seq[X509Certificate]] =
+    Either.catchOnly[CertificateException].apply {
+      CertificateFactory.getInstance("X.509")
+        .generateCertificates(new ByteArrayInputStream(bytes))
+        .asScala
+        .map(_.asInstanceOf[X509Certificate])
+        .toSeq
+    }.flatMap { certificates =>
+      if (certificates.isEmpty) Left(new CertificateException("No certificate found"))
+      else Right(certificates)
     }
 
   def trustManagerFromCertificatePath(path: Path, onLoad: Either[(Throwable, Path), Path] => Unit): X509TrustManager =
