@@ -10,7 +10,6 @@ import java.security.KeyStore
 import java.security.cert.{Certificate, CertificateException, CertificateFactory, X509Certificate}
 import java.util.concurrent.atomic.AtomicReference
 import javax.net.ssl.{SSLContext, TrustManagerFactory, X509TrustManager}
-import scala.collection.JavaConverters._
 
 object TrustManagers {
   val insecureTrustManager: X509TrustManager = new X509TrustManager() {
@@ -134,7 +133,7 @@ object TrustManagers {
 
   def keyStoreFromCertificatePath(path: Path, onLoad: Either[(Throwable, Path), Path] => Unit): KeyStore =
     keyStoreFromCertificates(
-      (if (Files.isDirectory(path)) Files.list(path).iterator.asScala
+      (if (Files.isDirectory(path)) listFiles(path)
       else Seq(path))
         .filter(path => !path.getFileName.toString.startsWith(".") && Files.isRegularFile(path))
         .flatMap { file =>
@@ -149,6 +148,12 @@ object TrustManagers {
           certificatesOrError.toSeq.flatten
         }.toSeq
     )
+
+  private def listFiles(directory: Path): Seq[Path] = {
+    val stream = Files.list(directory)
+    try stream.toArray.toSeq.map(_.asInstanceOf[Path])
+    finally stream.close()
+  }
 
   private lazy val logger = getLogger
 
@@ -175,9 +180,9 @@ object TrustManagers {
     Either.catchOnly[CertificateException].apply {
       CertificateFactory.getInstance("X.509")
         .generateCertificates(new ByteArrayInputStream(bytes))
-        .asScala
-        .map(_.asInstanceOf[X509Certificate])
+        .toArray(Array.empty[Certificate])
         .toSeq
+        .map(_.asInstanceOf[X509Certificate])
     }.flatMap { certificates =>
       if (certificates.isEmpty) Left(new CertificateException("No certificate found"))
       else Right(certificates)
