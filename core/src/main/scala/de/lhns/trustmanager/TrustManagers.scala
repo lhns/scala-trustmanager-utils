@@ -10,7 +10,6 @@ import java.security.KeyStore
 import java.security.cert.{Certificate, CertificateException, CertificateFactory, X509Certificate}
 import java.util.concurrent.atomic.AtomicReference
 import javax.net.ssl.{SSLContext, TrustManagerFactory, X509TrustManager}
-import scala.collection.JavaConverters._
 
 object TrustManagers {
   val insecureTrustManager: X509TrustManager = new X509TrustManager() {
@@ -134,21 +133,27 @@ object TrustManagers {
 
   def keyStoreFromCertificatePath(path: Path, onLoad: Either[(Throwable, Path), Path] => Unit): KeyStore =
     keyStoreFromCertificates(
-      (if (Files.isDirectory(path)) Files.list(path).iterator.asScala
+      (if (Files.isDirectory(path)) listFiles(path)
       else Seq(path))
         .filter(path => !path.getFileName.toString.startsWith(".") && Files.isRegularFile(path))
         .flatMap { file =>
-          val certificateOrError = for {
+          val certificatesOrError = for {
             bytes <- Either.catchOnly[IOException].apply(Files.readAllBytes(file))
-            certificate <- x509CertificateFromBytes(bytes)
-          } yield certificate
-          certificateOrError.fold[Unit](
+            certificates <- x509CertificatesFromBytes(bytes)
+          } yield certificates
+          certificatesOrError.fold[Unit](
             error => onLoad(Left((error, file))),
             _ => onLoad(Right(file))
           )
-          certificateOrError.toSeq
+          certificatesOrError.toSeq.flatten
         }.toSeq
     )
+
+  private def listFiles(directory: Path): Seq[Path] = {
+    val stream = Files.list(directory)
+    try stream.toArray[Path](new Array[Path](_)).toSeq
+    finally stream.close()
+  }
 
   private lazy val logger = getLogger
 
@@ -162,11 +167,25 @@ object TrustManagers {
   def keyStoreFromCertificatePath(path: Path): KeyStore =
     keyStoreFromCertificatePath(path, onLoad = logOnLoad)
 
+  @deprecated("Reads only the first certificate; use x509CertificatesFromBytes", "1.2.0")
   def x509CertificateFromBytes(bytes: Array[Byte]): Either[CertificateException, X509Certificate] =
     Either.catchOnly[CertificateException].apply {
-      CertificateFactory.getInstance("X509")
+      CertificateFactory.getInstance("X.509")
         .generateCertificate(new ByteArrayInputStream(bytes))
         .asInstanceOf[X509Certificate]
+    }
+
+  /** Reads all certificates: a single DER/PEM certificate or a PEM bundle. Fails if there are none. */
+  def x509CertificatesFromBytes(bytes: Array[Byte]): Either[CertificateException, Seq[X509Certificate]] =
+    Either.catchOnly[CertificateException].apply {
+      CertificateFactory.getInstance("X.509")
+        .generateCertificates(new ByteArrayInputStream(bytes))
+        .toArray(Array.empty[Certificate])
+        .toSeq
+        .collect { case certificate: X509Certificate => certificate } // an X.509 factory only yields X509Certificate
+    }.flatMap { certificates =>
+      if (certificates.isEmpty) Left(new CertificateException("No certificate found"))
+      else Right(certificates)
     }
 
   def trustManagerFromCertificatePath(path: Path, onLoad: Either[(Throwable, Path), Path] => Unit): X509TrustManager =
