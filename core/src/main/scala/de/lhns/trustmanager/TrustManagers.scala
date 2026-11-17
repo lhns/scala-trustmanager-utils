@@ -151,7 +151,7 @@ object TrustManagers {
 
   private def listFiles(directory: Path): Seq[Path] = {
     val stream = Files.list(directory)
-    try stream.toArray.toSeq.map(_.asInstanceOf[Path])
+    try stream.toArray[Path](new Array[Path](_)).toSeq
     finally stream.close()
   }
 
@@ -182,7 +182,7 @@ object TrustManagers {
         .generateCertificates(new ByteArrayInputStream(bytes))
         .toArray(Array.empty[Certificate])
         .toSeq
-        .map(_.asInstanceOf[X509Certificate])
+        .collect { case certificate: X509Certificate => certificate } // an X.509 factory only yields X509Certificate
     }.flatMap { certificates =>
       if (certificates.isEmpty) Left(new CertificateException("No certificate found"))
       else Right(certificates)
